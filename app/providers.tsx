@@ -7,58 +7,33 @@ import {
   useMemo,
   useState,
 } from "react";
-import { ethers } from "ethers";
+import { WalletClient, createWalletClient, custom } from "viem";
 import { usePrivy, useWallets, PrivyProvider } from "@privy-io/react-auth";
-
-export const WALLET_KEY = "flowcarbon:walletLabel";
-export const NETWORK_KEY = "flowcarbon:networkId";
-
-//Network we receive from an API
-interface Network {
-  id: number;
-  chain_id: number;
-}
+import { celoAlfajores } from "viem/chains";
 
 interface IWeb3 {
   isAuthenticated: boolean;
-  web3: ethers.BrowserProvider | null;
+  web3: WalletClient | undefined;
   address: string;
   loading: boolean;
-  ens?: string;
-  network?: number;
-  embeddedNetwork?: string;
   login: () => void;
   logout: () => Promise<void>;
   switchChain?: (chainId: number) => Promise<void>;
 }
-
-const NETWORKS: Network[] = [
-  {
-    id: 1,
-    chain_id: 1,
-  },
-  {
-    id: 2,
-    chain_id: 44787,
-  },
-];
 
 const Web3Context = createContext<IWeb3 | null>(null);
 
 const Web3Provider: React.FC<PropsWithChildren> = (props) => {
   const { login, ready, authenticated, user, logout } = usePrivy();
   const { wallets } = useWallets();
-  const [web3, setWeb3] = useState<any>();
-  const [selectedNetwork, setSelectedNetwork] = useState<Network | undefined>(
-    undefined,
-  );
+  const [web3, setWeb3] = useState<WalletClient | undefined>();
   const embeddedWallet = useMemo(
     () => wallets.find((wallet) => wallet.address === user?.wallet?.address),
-    [wallets, user?.wallet?.address],
+    [wallets, user?.wallet?.address]
   );
   useEffect(() => {
     let active = true;
-    if (ready && authenticated && embeddedWallet && selectedNetwork) {
+    if (embeddedWallet) {
       load();
     }
     return () => {
@@ -66,42 +41,21 @@ const Web3Provider: React.FC<PropsWithChildren> = (props) => {
     };
 
     async function load() {
-      setWeb3(undefined);
-      const provider = await embeddedWallet?.getEthersProvider();
-      console.log("Updating provider");
-      await embeddedWallet?.switchChain(selectedNetwork!.chain_id);
-      if (!active) {
+      console.log("Switching chain to alfajores");
+      await embeddedWallet?.switchChain(44787);
+      const provider = await embeddedWallet?.getEthereumProvider();
+      if (!active || !provider) {
         return;
       }
-      console.log(
-        "Switched chain",
-        selectedNetwork!.chain_id,
-        embeddedWallet?.chainId,
+      setWeb3(
+        createWalletClient({
+          transport: custom(provider),
+          chain: celoAlfajores,
+          account: embeddedWallet?.address as any,
+        })
       );
-      setWeb3(provider);
-    }
-  }, [embeddedWallet, ready, authenticated, selectedNetwork]);
-
-  useEffect(() => {
-    if (embeddedWallet?.chainId) {
-      const connectedId = embeddedWallet?.chainId.split(":").at(1);
-      const networkIndex = NETWORKS.findIndex(
-        ({ chain_id }) => chain_id + "" === connectedId,
-      );
-      if (networkIndex === -1) {
-        setSelectedNetwork(NETWORKS[1]);
-      } else {
-        setSelectedNetwork(NETWORKS[networkIndex]);
-      }
     }
   }, [embeddedWallet]);
-
-  const switchChain = async (chainId: number) => {
-    await embeddedWallet?.switchChain(chainId).catch((e) => {
-      console.log(e);
-    });
-    setSelectedNetwork(NETWORKS.find(({ chain_id }) => chain_id === chainId));
-  };
 
   return (
     <Web3Context.Provider
@@ -113,9 +67,6 @@ const Web3Provider: React.FC<PropsWithChildren> = (props) => {
         isAuthenticated: authenticated,
         login,
         logout,
-        network: selectedNetwork?.chain_id,
-        embeddedNetwork: embeddedWallet?.chainId,
-        switchChain,
       }}
     />
   );
