@@ -29,7 +29,7 @@ const Web3Provider: React.FC<PropsWithChildren> = (props) => {
   const [web3, setWeb3] = useState<WalletClient | undefined>();
   const embeddedWallet = useMemo(
     () => wallets.find((wallet) => wallet.address === user?.wallet?.address),
-    [wallets, user?.wallet?.address]
+    [wallets, user?.wallet?.address],
   );
   useEffect(() => {
     let active = true;
@@ -52,7 +52,7 @@ const Web3Provider: React.FC<PropsWithChildren> = (props) => {
           transport: custom(provider),
           chain: celoAlfajores,
           account: embeddedWallet?.address as any,
-        })
+        }),
       );
     }
   }, [embeddedWallet]);
@@ -62,7 +62,7 @@ const Web3Provider: React.FC<PropsWithChildren> = (props) => {
       {...props}
       value={{
         web3,
-        address: embeddedWallet?.address || "",
+        address: user?.wallet?.address || "",
         loading: !ready,
         isAuthenticated: authenticated,
         login,
@@ -85,6 +85,7 @@ export function Providers({ children }: React.PropsWithChildren) {
     <PrivyProvider
       appId={process.env.NEXT_PUBLIC_PRIVY_APP_ID!}
       config={{
+        defaultChain: celoAlfajores as any,
         loginMethods: ["email", "wallet", "google"],
         appearance: {
           theme: "light",

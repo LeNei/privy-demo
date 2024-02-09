@@ -54,7 +54,7 @@ const abi = [
 ];
 
 export default function Home() {
-  const { address, web3, login, switchChain, logout } = useWeb3Context();
+  const { address, web3, login, logout } = useWeb3Context();
 
   const requestApprove = async () => {
     if (!web3) return;
